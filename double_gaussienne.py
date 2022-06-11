@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 class poly_gauss(object):
 
     def __init__(self, x, mus, sigmas, coeffs):
-        assert len(mus) == len(sigmas) == len(coeffs)
 
         self.x = x
         self.y = np.zeros(x.shape)

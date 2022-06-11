@@ -14,62 +14,82 @@ time = datetime.datetime.now
 
 
 def change_x(x):
+    """
+    Change les ordonnées entre x_min et x_max à entre lambda_min et lambda_max
+    """
     return (x - x_min) / (x_max - x_min) * (lambda_max - lambda_min) + lambda_min
 
 
 def rand_range(a, b):
+    """
+    retourne un nombre aléatoire dans l'intervalle [a, b[
+    """
     return random() * (b - a) + a
 
 
 def gaussienne(x, mu, sigma, coeff):
+    """
+    retourne les ordonnées d'une gaussienne
+    """
     return coeff * np.exp(-(x-mu)*(x-mu)/sigma)
 
 
-def merge_array(mu, sigma, coeff, n_gauss):
-    assert len(mu) == len(sigma) == len(coeff)
-    ret = np.zeros(len(mu)*3)
+def merge_array(mu, sigma, coeff):
+    """
+    Retourne la concaténation des 3 arrays en entrée
+    """
+    ret = np.zeros(len(mu) + len(sigma) + len(coeff))
 
     for i in range(len(mu)):
         ret[i] = mu[i]
-    for i in range(len(mu)):
-        ret[i+n_gauss] = sigma[i]
-    for i in range(len(mu)):
-        ret[i+2*n_gauss] = coeff[i]
+    for i in range(len(sigma)):
+        ret[i+len(mu)] = sigma[i]
+    for i in range(len(coeff)):
+        ret[i+len(mu)+len(sigma)] = coeff[i]
     return ret
 
 
-sk_learn = False
-train_random = True
-test_random = False
+sk_learn = False  # Est-ce que du ML doit être utilisé
+train_random = False  # Est-ce que les valeurs de test doivent être aléatoire ou
+# utilisé les contraintes supplémentaires
+test_random = False   # Est-ce que la valeur de test doit être aléatoire ou
+# venir de données synthétique
 
-N = 300000
-n = 1000
-n_gauss = 4
+N = 400000  # Nombre de valeurs d'entrainement
+n = 1000    # Nombre de points dans les courbes d'entrainements
+n_gauss = 4  # nombre de gaussienne à additionner
 
-n_epochs = 15
+n_epochs = 15  # Nombre d'épochs sur lesquel le NN doit itérer
 
-x_min = -10
+x_min = -10  # Valeurs minimales et maximales du x des données
 x_max = 10
 
-lambda_min = 6558
+lambda_min = 6558  # Valeurs minimales des longueurs d'ondes étudier
 lambda_max = 6565
 
-percent_D = 0.5
+percent_D = 0.75  # Pourcentage de deutérium dans la valeur de test (uniquement si test_random == False)
 
 x = np.linspace(x_min, x_max, n)
 
-train_share = 1
+train_share = 1  # Portion des valeurs créer qui doit être dédié à l'entrainement
 N_train = int(train_share * N)
 N_test = N - N_train
 
-data = np.zeros((N_train, n))
+data = np.zeros((N_train, n))  # Initialisation des matrices de stockage des valeurs d'entrainement
 target = np.zeros((N_train, n_gauss, 3))
-target_full = np.zeros((N_train, 3*n_gauss))
+if train_random:
+    target_full = np.zeros((N_train, 3*n_gauss))
+else:
+    target_full = np.zeros((N_train, n_gauss + 4))
 
 data_test = np.zeros((N_test, n))
 target_test = np.zeros((N_test, n_gauss, 3))
-target_test_full = np.zeros((N_test, 3*n_gauss))
 
+if train_random:
+    target_test_full = np.zeros((N_test, 3*n_gauss))
+else:
+    target_test_full = np.zeros((N_test, n_gauss + 4))  # On peut supprimer des informations supplémentaires
+    # grâce aux contraintes supplémentaires
 stdout.write("generating train values ")
 
 for i in range(N):
@@ -84,6 +104,7 @@ for i in range(N):
 
     if train_random:
         for j in range(n_gauss):
+            # Génération des mu, en prenant attention de ne pas placer les courbes trop près des valeurs limites
             mu.append(rand_range(x_min + (x_max - x_min) / 5, x_max - (x_max - x_min) / 5))
             sigma.append(rand_range(0.1, 2.5))
             coeff.append(rand_range(0.01, 1))
@@ -135,25 +156,32 @@ for i in range(N):
         target[i, :, 0] = mu
         target[i, :, 1] = sigma
         target[i, :, 2] = coeff
-        target_full[i, :] = merge_array(mu, sigma, coeff, n_gauss)
+        if train_random:
+            target_full[i, :] = merge_array(mu, sigma, coeff)
+        else:
+            target_full[i, :] = merge_array(mu, [sigma[0], sigma[-1]], [coeff[0], coeff[-1]])
     else:
         data_test[i-N_train, :] = courbe.y
 
         target_test[i-N_train, :] = mu
         target_test[i-N_train, :, 1] = sigma
         target_test[i-N_train, :, 2] = coeff
-        target_test_full[i-N_train, :] = merge_array(mu, sigma, coeff, n_gauss)
+        if train_random:
+            target_test_full[i-N_train, :] = merge_array(mu, sigma, coeff)
+        else:
+            target_full[i, :] = merge_array(mu, [sigma[0], sigma[-1]], [coeff[0], coeff[-1]])
     # if i%500 == 0:
     #     courbe.plot()
 
 stdout.write("\n")
 
-# from sklearn.linear_model import LinearRegression
-# from sklearn.ensemble import RandomForestRegressor
-from sklearn.ensemble import BaggingRegressor
-# from sklearn.tree import DecisionTreeRegressor
+if sk_learn:
+    # from sklearn.linear_model import LinearRegression
+    # from sklearn.ensemble import RandomForestRegressor
+    from sklearn.ensemble import BaggingRegressor
+    # from sklearn.tree import DecisionTreeRegressor
 
-from sklearn.model_selection import cross_validate
+    from sklearn.model_selection import cross_validate
 
 import tensorflow as tf
 
@@ -178,17 +206,18 @@ def build_and_compile_model(norm, n):
                   optimizer=tf.keras.optimizers.Adam(0.001))
     return model
 
-# model = BaggingRegressor(base_estimator=DecisionTreeRegressor(max_depth=3),
-#                          n_estimators=100)
 
-
-model = BaggingRegressor()
+if sk_learn:
+    model = BaggingRegressor()
 
 normalizer = tf.keras.layers.Normalization(axis=-1)
 normalizer.adapt(np.array(data))
 
 # model = build_and_compile_model(normalizer, 3)
-model_full = build_and_compile_model(normalizer, 3*n_gauss)
+if train_random:
+    model_NN = build_and_compile_model(normalizer, 3*n_gauss)
+else:
+    model_NN = build_and_compile_model(normalizer, n_gauss + 4)
 
 if test_random:
 
@@ -215,23 +244,28 @@ else:
 
 t1 = time()
 
-model_full.fit(data, target_full, epochs=n_epochs)#, validation_split=0.2)
+model_NN.fit(data, target_full, epochs=n_epochs)#, validation_split=0.2)
 
 t2 = time()
-print("fini fit full, in", t2-t1)
+print("fini fit NN, in", t2-t1)
 
 if test_random:
-    result_full = model_full.predict(courbe_test.reshape(1, -1))[0]
+    result_NN = model_NN.predict(courbe_test.reshape(1, -1))[0]
 else:
-    result_full = model_full.predict(y_test.reshape(1, -1))[0]
+    result_NN = model_NN.predict(y_test.reshape(1, -1))[0]
 
-mu_full = result_full[:n_gauss]
-sigma_full = abs(result_full[n_gauss:2*n_gauss])
-coeff_full = result_full[2*n_gauss:3*n_gauss]
+if train_random:
+    mu_NN = result_NN[:n_gauss]
+    sigma_NN = abs(result_NN[n_gauss:2*n_gauss])
+    coeff_NN = result_NN[2*n_gauss:]
+else:
+    mu_NN = result_NN[:n_gauss]
+    sigma_NN = abs(result_NN[n_gauss:2+n_gauss])
+    coeff_NN = result_NN[2+n_gauss:]
 
-print(result_full)
+print(result_NN)
 if test_random:
-    print(merge_array(courbe_test.mu, courbe_test.sigma, courbe_test.coeff, n_gauss))
+    print(merge_array(courbe_test.mu, courbe_test.sigma, courbe_test.coeff))
 
 # plt.plot(courbe_test.x, courbe_test.y, "b", label="somme des courbes originelles")
 # for i in range(3):
@@ -262,15 +296,15 @@ if sk_learn:
     print("fini fit full, in", t2-t1)
 
     # result_sk = model_sk.predict(courbe_test.y.reshape(1, -1))[0]
-    result_sk = model_full.predict(y_test.reshape(1, -1))[0]
+    result_sk = model_sk.predict(y_test.reshape(1, -1))[0]
 
-    result_mu = result_sk[:n_gauss]
-    result_sigma = abs(result_sk[n_gauss:2*n_gauss])
-    result_coeff = result_sk[2*n_gauss:3*n_gauss]
+    mu_sk = result_sk[:n_gauss]
+    sigma_sk = abs(result_sk[n_gauss:2*n_gauss])
+    coeff_sk = result_sk[2*n_gauss:3*n_gauss]
 
     print(result_sk)
     if test_random:
-        print(merge_array(courbe_test.mu, courbe_test.sigma, courbe_test.coeff, n_gauss))
+        print(merge_array(courbe_test.mu, courbe_test.sigma, courbe_test.coeff))
 
 
 # model_mu = model
@@ -336,31 +370,31 @@ if test_random:
                                                courbe_test.sigma[i], courbe_test.coeff[i]),
                      "b,")
 
-    resultat = poly_gauss(courbe_test.x, mu_full, sigma_full, coeff_full)
+    resultat = poly_gauss(courbe_test.x, mu_NN, sigma_NN, coeff_NN)
     plt.plot(resultat.x, resultat.y, "g--", label="Somme des courbes prédites, réseau neuronal")
 
     for i in range(n_gauss):
         if i > 0:
-            plt.plot(courbe_test.x, gaussienne(courbe_test.x, mu_full[i],
-                                               sigma_full[i], coeff_full[i]),
+            plt.plot(courbe_test.x, gaussienne(courbe_test.x, mu_NN[i],
+                                               sigma_NN[i], coeff_NN[i]),
                      "g,")
         else:
-            plt.plot(courbe_test.x, gaussienne(courbe_test.x, mu_full[i],
-                                               sigma_full[i], coeff_full[i]),
+            plt.plot(courbe_test.x, gaussienne(courbe_test.x, mu_NN[i],
+                                               sigma_NN[i], coeff_NN[i]),
                      "g,", label="Courbe predites, réseau neuronal")
 
     if sk_learn:
-        resultat = poly_gauss(courbe_test.x, result_mu, result_sigma, result_coeff)
+        resultat = poly_gauss(courbe_test.x, mu_sk, sigma_sk, coeff_sk)
         plt.plot(resultat.x, resultat.y, "r--", label="Somme des courbes prédites, scickit learn")
 
         for i in range(n_gauss):
             if i == 0:
-                plt.plot(courbe_test.x, gaussienne(courbe_test.x, result_mu[i],
-                                                   result_sigma[i], result_coeff[i]),
+                plt.plot(courbe_test.x, gaussienne(courbe_test.x, mu_sk[i],
+                                                   sigma_sk[i], coeff_sk[i]),
                          "r,", label="Courbe predites, scickit learn")
             else:
-                plt.plot(courbe_test.x, gaussienne(courbe_test.x, result_mu[i],
-                                                   result_sigma[i], result_coeff[i]),
+                plt.plot(courbe_test.x, gaussienne(courbe_test.x, mu_sk[i],
+                                                   sigma_sk[i], coeff_sk[i]),
                          "r,")
 
 else:
@@ -370,37 +404,52 @@ else:
     # if sk_learn:
     #     result_mu = change_x(result_mu)
 
-    plt.plot(x, y_test, "b", label="somme des courbes originelles")
+    plt.plot(x, y_test, "k", label="somme des courbes originelles")
 
-    resultat = poly_gauss(x, mu_full, sigma_full, coeff_full)
-    plt.plot(resultat.x, resultat.y, "g--", label="Somme des courbes prédites, réseau neuronal")
+    resultat_D = poly_gauss(x, mu_NN[:2], [sigma_NN[0], sigma_NN[0]],
+                            [coeff_NN[0], coeff_NN[0]])
+    resultat_H = poly_gauss(x, mu_NN[2:], [sigma_NN[1], sigma_NN[1]],
+                            [coeff_NN[1], coeff_NN[1]])
+    
+    plt.plot(resultat_D.x, resultat_D.y, "r--", label="Somme des courbes prédites pour D, réseau neuronal")
+    plt.plot(resultat_H.x, resultat_H.y, "b--", label="Somme des courbes prédites pour H, réseau neuronal")
 
-    for i in range(n_gauss):
+    for i in range(2):
         if i > 0:
-            plt.plot(x, gaussienne(x, mu_full[i],
-                                   sigma_full[i], coeff_full[i]),
-                     "g,")
+            plt.plot(x, gaussienne(x, mu_NN[i],
+                                   sigma_NN[0], coeff_NN[0]),
+                     "r,")
         else:
-            plt.plot(x, gaussienne(x, mu_full[i],
-                                   sigma_full[i], coeff_full[i]),
-                     "g,", label="Courbe predites, réseau neuronal")
+            plt.plot(x, gaussienne(x, mu_NN[i],
+                                   sigma_NN[0], coeff_NN[0]),
+                     "r,", label="Courbe predites pour D, réseau neuronal")
+
+    for i in range(2, n_gauss):
+        if i > 2:
+            plt.plot(x, gaussienne(x, mu_NN[i],
+                                   sigma_NN[1], coeff_NN[1]),
+                     "b,")
+        else:
+            plt.plot(x, gaussienne(x, mu_NN[i],
+                                   sigma_NN[1], coeff_NN[1]),
+                     "b,", label="Courbe predites pour H, réseau neuronal")
 
     if sk_learn:
-        resultat = poly_gauss(x, result_mu, result_sigma, result_coeff)
+        resultat = poly_gauss(x, mu_sk, sigma_sk, coeff_sk)
         plt.plot(resultat.x, resultat.y, "r--", label="Somme des courbes prédites, scickit learn")
 
         for i in range(n_gauss):
             if i == 0:
-                plt.plot(x, gaussienne(x, result_mu[i],
-                                       result_sigma[i], result_coeff[i]),
+                plt.plot(x, gaussienne(x, mu_sk[i],
+                                       sigma_sk[i], coeff_sk[i]),
                          "r,", label="Courbe predites, scickit learn")
             else:
-                plt.plot(x, gaussienne(x, result_mu[i],
-                                       result_sigma[i], result_coeff[i]),
+                plt.plot(x, gaussienne(x, mu_sk[i],
+                                       sigma_sk[i], coeff_sk[i]),
                          "r,")
 
-    rapport_isotopique = np.mean(coeff_full[2:]) / (np.mean(coeff_full[:2]) + np.mean(coeff_full[2:])) * 100
-    print("Concentration isotopique :", rapport_isotopique, "% d'H, valeur théorique ", percent_D*100, "%")
+    rapport_isotopique = resultat_H.int() / (resultat_H.int() + resultat_D.int()) * 100
+    print("Concentration isotopique :", rapport_isotopique, "% d'H, valeur théorique ", (1-percent_D)*100, "%")
 
 plt.legend()
 plt.show()
