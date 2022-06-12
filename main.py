@@ -12,7 +12,6 @@ from sys import stdout
 
 time = datetime.datetime.now
 
-
 def change_x(x):
     """
     Change les ordonnées entre x_min et x_max à entre lambda_min et lambda_max
@@ -31,7 +30,7 @@ def gaussienne(x, mu, sigma, coeff):
     """
     retourne les ordonnées d'une gaussienne
     """
-    return coeff * np.exp(-(x-mu)*(x-mu)/sigma)
+    return coeff * np.exp(-4*np.log(2.)*(x-mu)*(x-mu)/sigma)
 
 
 def merge_array(mu, sigma, coeff):
@@ -59,7 +58,7 @@ N = 400000  # Nombre de valeurs d'entrainement
 n = 1000    # Nombre de points dans les courbes d'entrainements
 n_gauss = 4  # nombre de gaussienne à additionner
 
-n_epochs = 15  # Nombre d'épochs sur lesquel le NN doit itérer
+n_epochs = 5   # Nombre d'épochs sur lesquel le NN doit itérer
 
 x_min = -10  # Valeurs minimales et maximales du x des données
 x_max = 10
@@ -67,7 +66,7 @@ x_max = 10
 lambda_min = 6558  # Valeurs minimales des longueurs d'ondes étudier
 lambda_max = 6565
 
-percent_D = 0.75  # Pourcentage de deutérium dans la valeur de test (uniquement si test_random == False)
+percent_D = 0.5  # Pourcentage de deutérium dans la valeur de test (uniquement si test_random == False)
 
 x = np.linspace(x_min, x_max, n)
 
@@ -116,8 +115,9 @@ for i in range(N):
 
     else:
 
-        small_gap = rand_range(0.75, 4)
-        big_gap = rand_range(4, 8)
+        small_gap = rand_range(0.05, 4)
+        # big_gap = rand_range(4, 8)
+        big_gap = 1.8*(x_max - x_min) / 7
 
         first_mu = rand_range(x_min + (x_max - x_min) / 5, x_max - (x_max - x_min) / 5)
         mu.append(first_mu - small_gap)
@@ -125,22 +125,22 @@ for i in range(N):
         mu.append(first_mu + big_gap - small_gap)
         mu.append(first_mu + big_gap + small_gap)
 
-        sigma_first = rand_range(0.05, 4)
+        sigma_first = rand_range(0.5, 4)
 
         sigma.append(sigma_first)
         sigma.append(sigma_first)
 
-        sigma_second = rand_range(0.05, 4)
+        sigma_second = rand_range(0.5, 4)
 
         sigma.append(sigma_second)
         sigma.append(sigma_second)
 
-        coeff_first = rand_range(0.001, 1)
+        coeff_first = rand_range(0.1, 1)
 
         coeff.append(coeff_first)
         coeff.append(coeff_first)
 
-        coeff_second = rand_range(0.001, 1)
+        coeff_second = rand_range(0.1, 1)
 
         coeff.append(coeff_second)
         coeff.append(coeff_second)
@@ -191,13 +191,13 @@ from tensorflow.keras import layers
 
 def build_and_compile_model(norm, n):
     model = keras.Sequential([
-        norm,
-        layers.Dense(32, activation='relu'),
-        layers.Dense(64, activation='relu'),
-        layers.Dense(128, activation='relu'),
+        # norm,
+        layers.Dense(1000, activation='relu'),
+        layers.Dense(500, activation='relu'),
         layers.Dense(256, activation='relu'),
-        layers.Dense(128, activation='relu'),
-        layers.Dense(64, activation='relu'),
+        # layers.Dense(128, activation='relu'),
+        # layers.Dense(256, activation='relu'),
+        # layers.Dense(128, activation='relu'),
         layers.Dense(32, activation='relu'),
         layers.Dense(n)
     ])
@@ -219,6 +219,13 @@ if train_random:
 else:
     model_NN = build_and_compile_model(normalizer, n_gauss + 4)
 
+t1 = time()
+
+model_NN.fit(data, target_full, epochs=n_epochs)#, validation_split=0.2)
+
+t2 = time()
+print("fini fit NN, in", t2-t1)
+
 if test_random:
 
     mu = []
@@ -230,24 +237,17 @@ if test_random:
         sigma.append(rand_range(0.5, 2))
         coeff.append(rand_range(0.5, 3))
 
-    mu = sorted(mu)
-    coeff = sorted(coeff)
-    tmp = coeff[1]
-    coeff[1] = coeff[2]
-    coeff[2] = tmp
+    # mu = sorted(mu)
+    # coeff = sorted(coeff)
+    # tmp = coeff[1]
+    # coeff[1] = coeff[2]
+    # coeff[2] = tmp
 
     courbe_test = poly_gauss(x, mu, sigma, coeff)
 
 else:
 
     y_test = Gaussian(percent_D)
-
-t1 = time()
-
-model_NN.fit(data, target_full, epochs=n_epochs)#, validation_split=0.2)
-
-t2 = time()
-print("fini fit NN, in", t2-t1)
 
 if test_random:
     result_NN = model_NN.predict(courbe_test.reshape(1, -1))[0]
@@ -410,7 +410,7 @@ else:
                             [coeff_NN[0], coeff_NN[0]])
     resultat_H = poly_gauss(x, mu_NN[2:], [sigma_NN[1], sigma_NN[1]],
                             [coeff_NN[1], coeff_NN[1]])
-    
+
     plt.plot(resultat_D.x, resultat_D.y, "r--", label="Somme des courbes prédites pour D, réseau neuronal")
     plt.plot(resultat_H.x, resultat_H.y, "b--", label="Somme des courbes prédites pour H, réseau neuronal")
 

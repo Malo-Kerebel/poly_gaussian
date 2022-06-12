@@ -13,7 +13,7 @@ class poly_gauss(object):
         self.coeff = coeffs
 
         for i in range(len(mus)):
-            self.y += coeffs[i] * np.exp(-(x-mus[i])*(x-mus[i])/sigmas[i])
+            self.y += coeffs[i] * np.exp(-4*np.log(2.)*(x-mus[i])*(x-mus[i])/sigmas[i])
 
     def __repr__(self):
 
@@ -33,7 +33,7 @@ class poly_gauss(object):
         self.sigma.append(sigma)
         self.coeff.append(coeff)
 
-        self.y += coeff * np.exp(-(self.x-mu)*(self.x-mu)/sigma)
+        self.y += coeff * np.exp(-4*np.log(2.)*(self.x-mu)*(self.x-mu)/sigma)
 
     def add_curves(self, mus, sigmas, coeffs):
 

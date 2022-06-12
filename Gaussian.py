@@ -2,11 +2,10 @@ import numpy as np
 
 
 def doppler(lambdax, lambda0, FWHM, B):
-    return (1*np.sqrt(np.log(2.)/np.pi)/FWHM)*np.exp(-4*np.log(2.)*np.power((lambdax - lambda0-0.21*B), 2.) / (np.power(FWHM, 2.))) + \
-           (1*np.sqrt(np.log(2.)/np.pi)
-            / FWHM)*np.exp(-4*np.log(2.)
-                           * np.power((lambdax - lambda0+0.21*B), 2.)
-                           / (np.power(FWHM, 2.)))
+    coeff = 1 * np.sqrt(np.log(2.)/np.pi)/FWHM
+    premiere_courbe = coeff * np.exp(-4*np.log(2.) * np.power((lambdax - lambda0-0.21*B), 2.) / (np.power(FWHM, 2.)))
+    deuxieme_courbe = coeff * np.exp(-4*np.log(2.) * np.power((lambdax - lambda0+0.21*B), 2.) / (np.power(FWHM, 2.)))
+    return premiere_courbe + deuxieme_courbe
 
 
 def gaussian(x, mu, sig):
