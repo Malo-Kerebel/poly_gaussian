@@ -418,6 +418,12 @@ else:
     resultat_H = poly_gauss(x, mu_NN[2:], [sigma_NN[1], sigma_NN[1]],
                             [coeff_NN[1], coeff_NN[1]])
 
+    with open("B="+str(B)+",D="+str(percent_D)+"N="+str(N)+".txt", 'w') as f:
+        f.write("# y_true, y_H, y_D\n")
+        for i in range(n):
+            tmp = f"{y_test[i]} {resultat_H.y[i]} {resultat_D.y[i]}\n"
+            f.write(tmp)
+
     plt.plot(x_show, resultat_D.y, "r--", label="Somme des courbes prédites pour D, réseau neuronal")
     plt.plot(x_show, resultat_H.y, "b--", label="Somme des courbes prédites pour H, réseau neuronal")
 
@@ -458,5 +464,7 @@ else:
     rapport_isotopique = resultat_H.int() / (resultat_H.int() + resultat_D.int()) * 100
     print("Concentration isotopique :", rapport_isotopique, "% d'H, valeur théorique ", (1-percent_D)*100, "%")
 
+error = abs(rapport_isotopique-(1-percent_D)*100)/((1-percent_D)*100)*100
+plt.savefig("B="+str(B)+",D="+str(percent_D)+",N="+str(N)+",error="+str(error)+".png")
 plt.legend()
 plt.show()
