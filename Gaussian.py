@@ -12,7 +12,7 @@ def gaussian(x, mu, sig):
     return np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
 
 
-def Gaussian(percent_D, B=2.0, percent_temp1=1):
+def Gaussian(percent_D, B=2.0, percent_temp1=1, noise=False):
 
     mass_h = 1
     mass_d = 2
@@ -39,5 +39,8 @@ def Gaussian(percent_D, B=2.0, percent_temp1=1):
 
     ret = [lam0_D-0.21*B, lam0_D+0.21*B, lam0_H-0.21*B, lam0_H+0.21*B,
            FWHM_d1, FWHM_h1, 1 * np.sqrt(np.log(2.)/np.pi)/FWHM_h1*percent_D, 1 * np.sqrt(np.log(2.)/np.pi)/FWHM_h1*(1-percent_D)]
+
+    if noise:
+        y0 = y0 + 0.01 * np.random.normal(size=y0.size) # adding some noise
 
     return y0, ret

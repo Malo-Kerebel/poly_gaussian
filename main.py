@@ -54,20 +54,25 @@ train_random = False  # Est-ce que les valeurs de test doivent être aléatoire 
 test_random = False   # Est-ce que la valeur de test doit être aléatoire ou
 # venir de données synthétique
 
-N = 75000  # Nombre de valeurs d'entrainement
+N = 200000  # Nombre de valeurs d'entrainement
 n = 1000    # Nombre de points dans les courbes d'entrainements
 n_gauss = 4  # nombre de gaussienne à additionner
 
-n_epochs = 30   # Nombre d'épochs sur lesquel le NN doit itérer
+n_epochs = 10   # Nombre d'épochs sur lesquel le NN doit itérer
 
-x_min = 6558  # Valeurs minimales et maximales du x des données
-x_max = 6565
+x_min = -10  # Valeurs minimales et maximales du x des données
+x_max = 10
 
 lambda_min = 6558  # Valeurs minimales des longueurs d'ondes étudier
 lambda_max = 6565
 
 percent_D = 0.85  # Pourcentage de deutérium dans la valeur de test (uniquement si test_random == False)
-B = 1.5           # Champ magnétique en tesla
+B = 2.5           # Champ magnétique en tesla
+
+noise_train = True
+noise_test = True
+
+show = False
 
 x = np.linspace(x_min, x_max, n)
 x_show = np.linspace(lambda_min, lambda_max, n)
@@ -117,7 +122,7 @@ for i in range(N):
 
     else:
 
-        small_gap = rand_range(0.05, 4)
+        small_gap = rand_range(0.05, 2)
         # big_gap = rand_range(4, 8)
         big_gap = 1.8*(x_max - x_min) / (lambda_max - lambda_min)
 
@@ -147,7 +152,7 @@ for i in range(N):
         coeff.append(coeff_second)
         coeff.append(coeff_second)
 
-    courbe = poly_gauss(x, mu, sigma, coeff)
+    courbe = poly_gauss(x, mu, sigma, coeff, noise_train)
 
     if i < N_train:
         data[i, :] = courbe.y
@@ -170,8 +175,8 @@ for i in range(N):
         else:
             target_full[i, :] = merge_array(mu, [sigma[0], sigma[-1]], [coeff[0], coeff[-1]])
 
-    # if i%(N//2) == 0:
-    #     courbe.plot()
+    if show and i%(N//2) == 0:
+        courbe.plot()
 
 stdout.write("\n")
 
@@ -243,11 +248,11 @@ if test_random:
     # coeff[1] = coeff[2]
     # coeff[2] = tmp
 
-    courbe_test = poly_gauss(x, mu, sigma, coeff)
+    courbe_test = poly_gauss(x, mu, sigma, coeff, noise_test)
 
 else:
 
-    y_test, expected = Gaussian(percent_D, B)
+    y_test, expected = Gaussian(percent_D, B, noise_test)
 
 if test_random:
     result_NN = model_NN.predict(courbe_test.reshape(1, -1))[0]

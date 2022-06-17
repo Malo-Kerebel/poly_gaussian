@@ -4,16 +4,20 @@ import matplotlib.pyplot as plt
 
 class poly_gauss(object):
 
-    def __init__(self, x, mus, sigmas, coeffs):
+    def __init__(self, x, mus, sigmas, coeffs, noise=False):
 
         self.x = x
         self.y = np.zeros(x.shape)
         self.mu = mus
         self.sigma = sigmas
         self.coeff = coeffs
+        self.noise = noise
 
         for i in range(len(mus)):
             self.y += coeffs[i] * np.exp(-4*np.log(2.)*(x-mus[i])*(x-mus[i])/sigmas[i])
+            if noise:
+                self.y = self.y + 0.01 * np.random.normal(size=self.y.size)
+                # adding some noise
 
     def __repr__(self):
 
@@ -33,7 +37,11 @@ class poly_gauss(object):
         self.sigma.append(sigma)
         self.coeff.append(coeff)
 
-        self.y += coeff * np.exp(-4*np.log(2.)*(self.x-mu)*(self.x-mu)/sigma)
+        add_y = coeff * np.exp(-4*np.log(2.)*(self.x-mu)*(self.x-mu)/sigma)
+        if self.noise:
+            self.y += add_y + 0.01 * np.random.normal(size=add_y.size)
+        else:
+            self.y += add_y
 
     def add_curves(self, mus, sigmas, coeffs):
 
