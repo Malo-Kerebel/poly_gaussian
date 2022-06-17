@@ -54,7 +54,7 @@ train_random = False  # Est-ce que les valeurs de test doivent être aléatoire 
 test_random = False   # Est-ce que la valeur de test doit être aléatoire ou
 # venir de données synthétique
 
-N = 200000  # Nombre de valeurs d'entrainement
+N = 2  # Nombre de valeurs d'entrainement
 n = 1000    # Nombre de points dans les courbes d'entrainements
 n_gauss = 4  # nombre de gaussienne à additionner
 
@@ -72,7 +72,10 @@ B = 2.5           # Champ magnétique en tesla
 noise_train = True
 noise_test = True
 
-show = False
+show = True
+
+save_txt = False
+save_png = True
 
 x = np.linspace(x_min, x_max, n)
 x_show = np.linspace(lambda_min, lambda_max, n)
@@ -242,17 +245,11 @@ if test_random:
         sigma.append(rand_range(0.5, 2))
         coeff.append(rand_range(0.5, 3))
 
-    # mu = sorted(mu)
-    # coeff = sorted(coeff)
-    # tmp = coeff[1]
-    # coeff[1] = coeff[2]
-    # coeff[2] = tmp
-
     courbe_test = poly_gauss(x, mu, sigma, coeff, noise_test)
 
 else:
 
-    y_test, expected = Gaussian(percent_D, B, noise_test)
+    y_test, expected = Gaussian(percent_D, B, noise=noise_test)
 
 if test_random:
     result_NN = model_NN.predict(courbe_test.reshape(1, -1))[0]
@@ -273,22 +270,6 @@ if test_random:
     print(merge_array(courbe_test.mu, courbe_test.sigma, courbe_test.coeff))
 else:
     print(expected)
-
-# plt.plot(courbe_test.x, courbe_test.y, "b", label="somme des courbes originelles")
-# for i in range(3):
-#     plt.plot(courbe_test.x, gaussienne(courbe_test.x, courbe_test.mu[i],
-#                                        courbe_test.sigma[i], courbe_test.coeff[i]),
-#              "b.", label="Courbe originelles")
-
-# for i in range(3):
-#     plt.plot(courbe_test.x, gaussienne(courbe_test.x, mu_full[i],
-#                                        sigma_full[i], coeff_full[i]),
-#              "g.", label="Courbe predites")
-
-# resultat = poly_gauss(courbe_test.x, mu_full, sigma_full, coeff_full)
-# plt.plot(resultat.x, resultat.y, "g", label="Somme des courbes prédites")
-# plt.legend()
-# plt.show()
 
 if sk_learn:
 
@@ -313,56 +294,6 @@ if sk_learn:
     if test_random:
         print(merge_array(courbe_test.mu, courbe_test.sigma, courbe_test.coeff))
 
-
-# model_mu = model
-
-# # cv_result_mu = cross_validate(model_mu, data, target[:, :, 0], return_train_score=True)
-
-# # print(cv_result_mu)
-
-# model_mu.fit(data, target[:, :, 0])#, epochs=n_epochs)#, validation_split=0.2)
-
-# print("fini fit mu")
-
-# result_mu = model_mu.predict(courbe_test.y.reshape(1, -1))
-
-# print("fini prediction mu")
-# print(result_mu)
-# print(courbe_test.mu)
-
-# # print("Linear Regression result :", result)
-
-# model_sigma = model
-# model_sigma.fit(data, target[:, :, 1])#, epochs=n_epochs)#, validation_split=0.2)
-
-# print("fini fit sigma")
-
-# result_sigma = model_sigma.predict(courbe_test.y.reshape(1, -1))
-
-# print("fini prediction sigma")
-# print(result_sigma)
-# print(courbe_test.sigma)
-
-# model_coeff = model
-# model_coeff.fit(data, target[:, :, 2]),# epochs=n_epochs)#, validation_split=0.2)
-
-# print("fini fit coeff")
-
-# result_coeff = model_coeff.predict(courbe_test.y.reshape(1, -1))
-
-# print("fini prediction coeff")
-# print(result_coeff)
-# print(courbe_test.coeff)
-
-# # print("Random Forest Regressor result", result)
-# # print("Expected result :", courbe_test.mu)
-# # courbe_test.plot()
-
-# result_mu = result_mu[0]
-# result_sigma = result_sigma[0]
-# result_coeff = result_coeff[0]
-
-# courbe_test.plot()
 
 if test_random:
 
@@ -418,11 +349,12 @@ else:
     resultat_H = poly_gauss(x, mu_NN[2:], [sigma_NN[1], sigma_NN[1]],
                             [coeff_NN[1], coeff_NN[1]])
 
-    with open("B="+str(B)+",D="+str(percent_D)+"N="+str(N)+".txt", 'w') as f:
-        f.write("# y_true, y_H, y_D\n")
-        for i in range(n):
-            tmp = f"{y_test[i]} {resultat_H.y[i]} {resultat_D.y[i]}\n"
-            f.write(tmp)
+    if save_txt:
+        with open("B="+str(B)+",D="+str(percent_D)+"N="+str(N)+".txt", 'w') as f:
+            f.write("# y_true, y_H, y_D\n")
+            for i in range(n):
+                tmp = f"{y_test[i]} {resultat_H.y[i]} {resultat_D.y[i]}\n"
+                f.write(tmp)
 
     plt.plot(x_show, resultat_D.y, "r--", label="Somme des courbes prédites pour D, réseau neuronal")
     plt.plot(x_show, resultat_H.y, "b--", label="Somme des courbes prédites pour H, réseau neuronal")
@@ -464,7 +396,10 @@ else:
     rapport_isotopique = resultat_H.int() / (resultat_H.int() + resultat_D.int()) * 100
     print("Concentration isotopique :", rapport_isotopique, "% d'H, valeur théorique ", (1-percent_D)*100, "%")
 
-error = abs(rapport_isotopique-(1-percent_D)*100)/((1-percent_D)*100)*100
-plt.savefig("B="+str(B)+",D="+str(percent_D)+",N="+str(N)+",error="+str(error)+".png")
+if save_png:
+    error = abs(rapport_isotopique-(1-percent_D)*100)/((1-percent_D)*100)*100
+    print(error)
+    plt.savefig("B="+str(B)+",D="+str(percent_D)+",N="+str(N)+",error="+str(error)+".png")
+
 plt.legend()
 plt.show()
