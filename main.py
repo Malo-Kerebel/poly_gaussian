@@ -54,7 +54,7 @@ train_random = False  # Est-ce que les valeurs de test doivent être aléatoire 
 test_random = False   # Est-ce que la valeur de test doit être aléatoire ou
 # venir de données synthétique
 
-N = 2  # Nombre de valeurs d'entrainement
+N = 500000  # Nombre de valeurs d'entrainement
 n = 1000    # Nombre de points dans les courbes d'entrainements
 n_gauss = 4  # nombre de gaussienne à additionner
 
@@ -66,15 +66,15 @@ x_max = 10
 lambda_min = 6558  # Valeurs minimales des longueurs d'ondes étudier
 lambda_max = 6565
 
-percent_D = 0.85  # Pourcentage de deutérium dans la valeur de test (uniquement si test_random == False)
+percent_D = 0.75  # Pourcentage de deutérium dans la valeur de test (uniquement si test_random == False)
 B = 2.5           # Champ magnétique en tesla
 
 noise_train = True
 noise_test = True
 
-show = True
+show = False
 
-save_txt = False
+save_txt = True
 save_png = True
 
 x = np.linspace(x_min, x_max, n)
@@ -145,12 +145,12 @@ for i in range(N):
         sigma.append(sigma_second)
         sigma.append(sigma_second)
 
-        coeff_first = rand_range(0.1, 1)
+        coeff_first = rand_range(0.1, 0.8)
 
         coeff.append(coeff_first)
         coeff.append(coeff_first)
 
-        coeff_second = rand_range(0.1, 1)
+        coeff_second = rand_range(0.1, 0.6)
 
         coeff.append(coeff_second)
         coeff.append(coeff_second)
@@ -398,7 +398,7 @@ else:
 
 if save_png:
     error = abs(rapport_isotopique-(1-percent_D)*100)/((1-percent_D)*100)*100
-    print(error)
+    print("Erreur de :", error)
     plt.savefig("B="+str(B)+",D="+str(percent_D)+",N="+str(N)+",error="+str(error)+".png")
 
 plt.legend()
