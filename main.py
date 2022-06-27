@@ -118,6 +118,8 @@ def show(result_NN, result_sk=None, show=True):
         sigma_NN = abs(result_NN[n_gauss:2+n_gauss])
         coeff_NN = result_NN[2+n_gauss:]
 
+    plt.figure()
+
     if test_random:
 
         plt.plot(x_show, courbe_test.y, "b", label="somme des courbes originelles")
@@ -250,12 +252,12 @@ train_random = False  # Est-ce que les valeurs de test doivent être aléatoire 
 test_random = False   # Est-ce que la valeur de test doit être aléatoire ou
 # venir de données synthétique
 
-N = 100000  # Nombre de valeurs d'entrainement
+N = 1000  # Nombre de valeurs d'entrainement
 n = 1000    # Nombre de points dans les courbes d'entrainements
 n_gauss = 4  # nombre de gaussienne à additionner
 n_test = 10  # Nombre de test à faire pour déterminer l'erreur moyenne
 
-n_epochs = 32   # Nombre d'épochs sur lesquel le NN doit itérer
+n_epochs = 2   # Nombre d'épochs sur lesquel le NN doit itérer
 
 x_min = -10  # Valeurs minimales et maximales du x des données
 x_max = 10
@@ -397,9 +399,9 @@ def build_and_compile_model(norm, n, n_points):
         # norm,
         layers.Dense(n_points, activation='relu'),
         layers.Dense(1.5*n_points, activation='relu'),
+        layers.Dense(3*n_points, activation='relu'),
+        layers.Dense(3*n_points, activation='relu'),
         layers.Dense(1.5*n_points, activation='relu'),
-        # layers.Dense(128, activation='relu'),
-        # layers.Dense(256, activation='relu'),
         # layers.Dense(128, activation='relu'),
         layers.Dense(0.5*n_points, activation='relu'),
         layers.Dense(n)
