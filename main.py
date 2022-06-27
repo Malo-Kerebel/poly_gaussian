@@ -80,17 +80,8 @@ def test(y_test, expected, B=None, percent_D=None):
     
     result_NN = model_NN.predict(y_test.reshape(1, -1))[0]
 
-    if train_random:
-        mu_NN = result_NN[:n_gauss]
-        sigma_NN = abs(result_NN[n_gauss:2*n_gauss])
-        coeff_NN = result_NN[2*n_gauss:]
-    else:
-        mu_NN = result_NN[:n_gauss]
-        sigma_NN = abs(result_NN[n_gauss:2+n_gauss])
-        coeff_NN = result_NN[2+n_gauss:]
-
-    print(result_NN)
-    print(expected)
+    # print(result_NN)
+    # print(expected)
 
     if sk_learn:
 
@@ -107,14 +98,25 @@ def test(y_test, expected, B=None, percent_D=None):
         # result_sk = model_sk.predict(courbe_test.y.reshape(1, -1))[0]
         result_sk = model_sk.predict(y_test.reshape(1, -1))[0]
 
-        mu_sk = result_sk[:n_gauss]
-        sigma_sk = abs(result_sk[n_gauss:2*n_gauss])
-        coeff_sk = result_sk[2*n_gauss:3*n_gauss]
-
         print(result_sk)
         if test_random:
             print(merge_array(courbe_test.mu, courbe_test.sigma, courbe_test.coeff))
 
+        return result_NN, result_sk
+
+    return result_NN, None
+
+
+def show(result_NN, result_sk=None, show=True):
+
+    if train_random:
+        mu_NN = result_NN[:n_gauss]
+        sigma_NN = abs(result_NN[n_gauss:2*n_gauss])
+        coeff_NN = result_NN[2*n_gauss:]
+    else:
+        mu_NN = result_NN[:n_gauss]
+        sigma_NN = abs(result_NN[n_gauss:2+n_gauss])
+        coeff_NN = result_NN[2+n_gauss:]
 
     if test_random:
 
@@ -143,6 +145,10 @@ def test(y_test, expected, B=None, percent_D=None):
                          "g,", label="Courbe predites, réseau neuronal")
 
         if sk_learn:
+            mu_sk = result_sk[:n_gauss]
+            sigma_sk = abs(result_sk[n_gauss:2*n_gauss])
+            coeff_sk = result_sk[2*n_gauss:3*n_gauss]
+            
             resultat = poly_gauss(courbe_test.x, mu_sk, sigma_sk, coeff_sk)
             plt.plot(x_show, resultat.y, "r--", label="Somme des courbes prédites, scickit learn")
 
@@ -201,6 +207,11 @@ def test(y_test, expected, B=None, percent_D=None):
                          "b,", label="Courbe predites pour H, réseau neuronal")
 
         if sk_learn:
+
+            mu_sk = result_sk[:n_gauss]
+            sigma_sk = abs(result_sk[n_gauss:2*n_gauss])
+            coeff_sk = result_sk[2*n_gauss:3*n_gauss]
+            
             resultat = poly_gauss(x, mu_sk, sigma_sk, coeff_sk)
             plt.plot(resultat.x, resultat.y, "r--", label="Somme des courbes prédites, scickit learn")
 
@@ -224,7 +235,13 @@ def test(y_test, expected, B=None, percent_D=None):
             plt.savefig("B="+str(B)+",D="+str(percent_D)+",N="+str(N)+",error="+str(error)+".png")
 
     plt.legend()
-    plt.show()
+    if show:
+        plt.show()
+
+    if test_random:
+        return resultat.y, None
+    else:
+        return resultat_D.y + resultat_H.y, error
 
 
 sk_learn = False  # Est-ce que du ML doit être utilisé
@@ -236,6 +253,7 @@ test_random = False   # Est-ce que la valeur de test doit être aléatoire ou
 N = 100000  # Nombre de valeurs d'entrainement
 n = 1000    # Nombre de points dans les courbes d'entrainements
 n_gauss = 4  # nombre de gaussienne à additionner
+n_test = 10  # Nombre de test à faire pour déterminer l'erreur moyenne
 
 n_epochs = 32   # Nombre d'épochs sur lesquel le NN doit itérer
 
@@ -248,7 +266,8 @@ lambda_max = 6565
 noise_train = True
 noise_test = True
 
-show = False
+train_show = False
+test_show = False
 
 save_txt = False
 save_png = False
@@ -354,7 +373,7 @@ for i in range(N):
         else:
             target_full[i, :] = merge_array(mu, [sigma[0], sigma[-1]], [coeff[0], coeff[-1]])
 
-    if show and i%(N//2) == 0:
+    if train_show and i%(N//2) == 0:
         courbe.plot()
 
 stdout.write("\n")
@@ -410,6 +429,21 @@ model_NN.fit(data, target_full, epochs=n_epochs)#, validation_split=0.2)
 t2 = time()
 print("fini fit NN, in", t2-t1)
 
-y_test, expected, B, percent_D = gen_test(False, True, True)
+mean_squared_error = np.zeros((n_test))
+mean_absolute_error = np.zeros((n_test))
+error = np.zeros((n_test))
 
-test(y_test, expected, B, percent_D)
+for i in range(n_test):
+
+    y_test, expected, B, percent_D = gen_test(False, True, True)
+
+    result_NN, _ = test(y_test, expected, B, percent_D)
+
+    y_predict, error[i] = show(result_NN, show=test_show)
+
+    mean_squared_error[i] = np.mean((y_test - y_predict)*(y_test - y_predict))
+    mean_absolute_error[i] = np.mean(np.abs(y_test - y_predict))
+
+print("mean prediction error", np.mean(error))
+print("mean squared error :", np.mean(mean_squared_error))
+print("mean absolute error :", np.mean(mean_absolute_error))
