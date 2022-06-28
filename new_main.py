@@ -58,6 +58,9 @@ def features(y, show_extremum):
         if indexs[i] > 0:
             indexes.append(indexs[i])
 
+    # For small percentages of hydrogen, we may not find the extremum of
+    # their spectra because they are too small compared to the deuterium.
+    # in this case, we take the second derivative 
     if len(indexes) < 4:
         y_second = np.gradient(y_deriv, x[1] - x[0])
 
@@ -79,6 +82,9 @@ def features(y, show_extremum):
                 indexes_second.append(indexs_second[i])
 
         difference = indexes_second[-1] - indexes_second[-2]
+        # if the second derivative change of sign, that means that we see the
+        # beginning, or the end, of the last peak of the hydrogen, therefore,
+        # the peak is in the middle of the last two change of sign.
         indexes.append(int(indexes_second[-2] - difference / 2))
         indexes.append(int(indexes_second[-2] + difference / 2))
         
