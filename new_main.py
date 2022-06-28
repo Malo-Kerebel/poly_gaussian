@@ -58,10 +58,35 @@ def features(y, show_extremum):
         if indexs[i] > 0:
             indexes.append(indexs[i])
 
+    if len(indexes) < 4:
+        y_second = np.gradient(y_deriv, x[1] - x[0])
+
+        indexs_second = np.zeros((9), dtype=np.int16)
+        index = 0
+        sign = np.sign(y_second[0])
+        for i in range(1, n):
+
+            # We determine when the derivative changes sign to detect
+            # the local extremum, values oscillating arround 0 but
+            if np.sign(y_second[i]) != sign:
+                indexs_second[index] = i
+                index += 1
+                sign *= -1
+                
+        indexes_second = []
+        for i in range(7):
+            if indexs_second[i] > 0:
+                indexes_second.append(indexs_second[i])
+
+        difference = indexes_second[-1] - indexes_second[-2]
+        indexes.append(int(indexes_second[-2] - difference / 2))
+        indexes.append(int(indexes_second[-2] + difference / 2))
+        
+
     # Plot a graph of the spectrum with the position of the detected
     # extremum to verify that it is correct
     # the threshold value is arbitrary
-    if show_extremum and np.random.random() < 0.0001:
+    if show_extremum and np.random.random() < 0.001:
         for i in range(len(indexes)):
             plt.plot(x[indexes[i]], y[indexes[i]], "ro")
         plt.plot(x, y)
@@ -86,16 +111,18 @@ def percent_error(predict, true):
 
 
 #Physics quantities
-percent_H = 0.25
-B = 2
+min_percent = 0.01
+max_percent = 0.25
+min_B = 1
+max_B = 4
 percent_temp1 = 0.55
 Temp1 = 23208
 Temp2 = 174060
 
 #Numerical quantities
 n = 1000
-N_train = 150000
-N_test = 50
+N_train = 1000000
+N_test = 200
 n_features = 6
 
 # Array for data and target
@@ -118,8 +145,8 @@ for i in range(N_train):
     stdout.flush()
 
     # Randomizing values for training
-    percent_H = rand_range_normal(0.1, 0.45)
-    B = rand_range_normal(1.5, 4)
+    percent_H = rand_range(min_percent, max_percent)
+    B = rand_range_normal(min_B, max_B)
     percent_temp1 = rand_range_normal(0.4, 0.7)
     # Generating temperatures between T +/- 10%
     T1 = rand_range_normal(Temp1 - Temp1 * 0.1, Temp1 + Temp1 * 0.1)
@@ -173,8 +200,8 @@ print(f"fit NN, in {t2-t1}")
 for i in range(N_test):
 
     # Same as for train values we generate test value randomly
-    percent_H = rand_range_normal(0.1, 0.45)
-    B = rand_range_normal(1.5, 4)
+    percent_H = rand_range(min_percent, max_percent)
+    B = rand_range_normal(min_B, max_B)
     percent_temp1 = rand_range_normal(0.4, 0.7)
     T1 = rand_range_normal(Temp1 - Temp1 * 0.1, Temp1 + Temp1 * 0.1)
     T2 = rand_range_normal(Temp2 - Temp2 * 0.1, Temp2 + Temp2 * 0.1)
@@ -185,12 +212,22 @@ for i in range(N_test):
     target_test[i] = percent_H
 
 error = np.zeros((N_test))
+predict = np.zeros((N_test))
+
 for i in range(N_test):
     # the predict method will output a 1×1 matrix, but we want only the number
     # so we extract it with the [0, 0]
     prediction = model_NN.predict(data_test[i].reshape(1, -1))[0, 0]
     
     error[i] = percent_error(prediction, target_test[i])
-    print(f"The algorithm predicted {prediction*100}% of Hydrogen, in reality there is , {target_test[i]*100}%, we have {error[i]}% of error.")
+    # print(f"The algorithm predicted {prediction*100}% of Hydrogen, in reality there is , {target_test[i]*100}%, we have {error[i]}% of error.")
+
+    predict[i] = prediction
 
 print(f"The average error is of {np.mean(error)}%")
+
+plt.scatter(target_test*100, predict*100)
+plt.plot(target_test*100, target_test*100, "k", label="theorical")
+plt.xlabel("True percentage")
+plt.ylabel("Predicted percentage")
+plt.show()
