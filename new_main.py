@@ -3,6 +3,9 @@ import numpy as np
 from numpy.random import random
 import matplotlib.pyplot as plt
 
+plt.rc('text', usetex=True)
+plt.rc('font', family='serif')
+
 import datetime
 
 from sys import stdout
@@ -88,23 +91,37 @@ def features(y, show_extremum):
         indexes.append(int(indexes_second[-2] - difference / 2))
         indexes.append(int(indexes_second[-2] + difference / 2))
         
-
-    # Plot a graph of the spectrum with the position of the detected
-    # extremum to verify that it is correct
-    # the threshold value is arbitrary
-    if show_extremum and np.random.random() < 0.001:
-        for i in range(len(indexes)):
-            plt.plot(x[indexes[i]], y[indexes[i]], "ro")
-        plt.plot(x, y)
-        plt.show()
-
     x_min = x[indexes[0]]       # x of the first peak
     x_2_dip = x[indexes[-2]]    # x of the firts dip
     delta_x = x_2_dip - x_min   # difference between the x of the
     # first dip and the x of the first peak
     I_min_I_max = y[indexes[-1]] / y[indexes[0]] # ratio between the intensity
     # of the first peak(D), and the the last peak (H)
-    I_dip_I_max = y[indexes[1]] / y[indexes[0]] 
+    I_dip_I_max = y[indexes[1]] / y[indexes[0]]
+
+    # Plot a graph of the spectrum with the position of the detected
+    # extremum to verify that it is correct
+    # the threshold value is arbitrary
+    if show_extremum and np.random.random() < 0.01:
+        plt.plot(x, y)
+        for i in range(len(indexes)):
+            plt.plot(x[indexes[i]], y[indexes[i]], "ro")
+        plt.plot([x_min, x_2_dip], [y[indexes[0]], y[indexes[0]]], "k")
+        plt.plot([x_2_dip, x_2_dip], [y[indexes[-2]], y[indexes[0]]], "k--")
+        plt.text((x_min + x_2_dip) / 2, y[indexes[0]] - 0.03*y[indexes[0]], r"\(\Delta \lambda\)", fontsize="xx-large")
+
+        plt.plot([x_min, x_min], [y[indexes[0]], y[indexes[-1]]], "r")
+        plt.plot([x_min, x[indexes[-1]]], [y[indexes[-1]], y[indexes[-1]]], "r--")
+        plt.text(x_min - 75 * (x[1] - x[0]), (y[indexes[0]] +  y[indexes[-1]]) / 2, r"\( \frac{I_{min}}{I_{max}} \)", fontsize="xx-large")
+
+        plt.plot([x[indexes[1]], x[indexes[1]]], [y[indexes[0]], y[indexes[1]]], "g")
+        plt.plot([x_min, x[indexes[1]]], [y[indexes[0]], y[indexes[0]]], "g--")
+        plt.text(x[indexes[1]] + 10 * (x[1] - x[0]), (y[indexes[0]] +  y[indexes[1]]) / 2, r"\( \frac{I_{dip}}{I_{max}} \)", fontsize="xx-large")
+
+        plt.ylabel(r"Normalized intensity", fontsize="x-large")
+        plt.xlabel(r"Wave length (in \AA)", fontsize="x-large")
+        
+        plt.show()
     
     return B, T1, T2, delta_x, I_min_I_max, I_dip_I_max
 
@@ -114,6 +131,10 @@ def percent_error(predict, true):
     Returns the percentage of error between the true value and the predicted value
     """
     return (np.abs(true - predict) / true) * 100
+
+
+def moving_average(x, w):
+    return np.convolve(x, np.ones(w), 'valid') / w
 
 
 #Physics quantities
@@ -127,9 +148,11 @@ Temp2 = 174060
 
 #Numerical quantities
 n = 1000
-N_train = 1000000
-N_test = 200
-n_features = 6
+N_train = 50000
+N_test = 2000
+n_features = 3
+
+n_moving_average = 50
 
 # Array for data and target
 data_train = np.zeros((N_train, n_features))
@@ -137,7 +160,10 @@ target_train = np.zeros((N_train))
 data_test = np.zeros((N_test, n_features))
 target_test = np.zeros((N_test))
 
-n_epochs = 20
+n_epochs = 32
+
+noise_train = False
+noise_test = False
 
 # QoL features
 show_verif_extremum = False
@@ -159,7 +185,10 @@ for i in range(N_train):
     T2 = rand_range_normal(Temp2 - Temp2 * 0.1, Temp2 + Temp2 * 0.1)
 
     # We discard in _ the expected value returned for the approach
-    y, _ = Gaussian(1-percent_H, B, percent_temp1, T1, T2, n)
+    y, _ = Gaussian(1-percent_H, B, percent_temp1, T1, T2, n, noise=noise_train)
+
+    if noise_train:
+        y = moving_average(y, n_moving_average)
 
     data_train[i, :] = features(y, show_verif_extremum)
     target_train[i] = percent_H
@@ -205,6 +234,9 @@ print(f"fit NN, in {t2-t1}")
 # Generating test value
 for i in range(N_test):
 
+    stdout.write("\r%3d/%4d" % (i+1, N_test))
+    stdout.flush()
+
     # Same as for train values we generate test value randomly
     percent_H = rand_range(min_percent, max_percent)
     B = rand_range_normal(min_B, max_B)
@@ -212,8 +244,11 @@ for i in range(N_test):
     T1 = rand_range_normal(Temp1 - Temp1 * 0.1, Temp1 + Temp1 * 0.1)
     T2 = rand_range_normal(Temp2 - Temp2 * 0.1, Temp2 + Temp2 * 0.1)
 
-    y, _ = Gaussian(1-percent_H, B, percent_temp1, T1, T2, n)
+    y, _ = Gaussian(1-percent_H, B, percent_temp1, T1, T2, n, noise=noise_test)
 
+    if noise_test:
+        y = moving_average(y, n_moving_average)
+        
     data_test[i, :] = features(y, False)
     target_test[i] = percent_H
 
@@ -221,6 +256,10 @@ error = np.zeros((N_test))
 predict = np.zeros((N_test))
 
 for i in range(N_test):
+
+    stdout.write("\r%3d/%4d" % (i+1, N_test))
+    stdout.flush()
+    
     # the predict method will output a 1×1 matrix, but we want only the number
     # so we extract it with the [0, 0]
     prediction = model_NN.predict(data_test[i].reshape(1, -1))[0, 0]
