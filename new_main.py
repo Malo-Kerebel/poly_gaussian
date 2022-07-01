@@ -150,7 +150,7 @@ Temp2 = 174060
 n = 1000
 N_train = 50000
 N_test = 2000
-n_features = 3
+n_features = 6
 
 n_moving_average = 50
 
@@ -179,7 +179,7 @@ for i in range(N_train):
     # Randomizing values for training
     percent_H = rand_range(min_percent, max_percent)
     B = rand_range_normal(min_B, max_B)
-    percent_temp1 = rand_range_normal(0.4, 0.7)
+    percent_temp1 = rand_range_normal(0.25, 0.75)
     # Generating temperatures between T +/- 10%
     T1 = rand_range_normal(Temp1 - Temp1 * 0.1, Temp1 + Temp1 * 0.1)
     T2 = rand_range_normal(Temp2 - Temp2 * 0.1, Temp2 + Temp2 * 0.1)
@@ -240,7 +240,7 @@ for i in range(N_test):
     # Same as for train values we generate test value randomly
     percent_H = rand_range(min_percent, max_percent)
     B = rand_range_normal(min_B, max_B)
-    percent_temp1 = rand_range_normal(0.4, 0.7)
+    percent_temp1 = rand_range_normal(0.25, 0.75)
     T1 = rand_range_normal(Temp1 - Temp1 * 0.1, Temp1 + Temp1 * 0.1)
     T2 = rand_range_normal(Temp2 - Temp2 * 0.1, Temp2 + Temp2 * 0.1)
 
@@ -271,7 +271,7 @@ for i in range(N_test):
 
 print(f"The average error is of {np.mean(error)}%")
 
-plt.scatter(target_test*100, predict*100)
+plt.plot(target_test*100, predict*100, "b,")
 plt.plot(target_test*100, target_test*100, "k", label="theorical")
 plt.xlabel("True percentage")
 plt.ylabel("Predicted percentage")
