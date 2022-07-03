@@ -41,6 +41,6 @@ def Gaussian(percent_D, B=2.0, percent_temp1=1, Temp1=23208, Temp2=174060, n=100
            FWHM_d1, FWHM_h1, 1 * np.sqrt(np.log(2.)/np.pi)/FWHM_h1*percent_D, 1 * np.sqrt(np.log(2.)/np.pi)/FWHM_h1*(1-percent_D)]
 
     if noise:
-        y0 = y0 + 0.01 * np.random.normal(size=y0.size) # adding some noise
+        y0 = y0 + 0.0025 * np.random.normal(size=y0.size) # adding some noise
 
     return y0, ret
