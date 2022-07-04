@@ -297,7 +297,7 @@ for i in range(N_test):
 print(f"The average error is of {np.mean(error)}%")
 print(f"The median error is of {np.median(error)}%")
 
-plt.plot(target_test*100, predict*100, "bo")
+plt.plot(target_test*100, predict*100, "o")
 plt.plot(target_test*100, target_test*100, "k", label="theorical")
 plt.xlabel("True percentage")
 plt.ylabel("Predicted percentage")
